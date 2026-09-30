@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 import 'user.dart';
+import 'persistence.dart';
 
 class UserStore {
   static final UserStore _instance = UserStore._internal();
@@ -7,8 +8,26 @@ class UserStore {
   UserStore._internal();
 
   final _uuid = const Uuid();
-  final Map<String, User> _users = {}; // id -> User
-  final Map<String, String> _emailToId = {}; // email -> id
+  final Map<String, User> _users = {};
+  final Map<String, String> _emailToId = {};
+
+  Future<void> init() async {
+    final list = await Persistence.loadUsers();
+    for (final j in list) {
+      try {
+        final u = User.fromJson(j);
+        _users[u.id] = u;
+        _emailToId[u.email] = u.id;
+      } catch (_) {}
+    }
+    print('📂 Cargados ${_users.length} usuarios');
+  }
+
+  Future<void> _persist() async {
+    await Persistence.saveUsers(
+      _users.values.map((u) => u.toJsonFull()).toList(),
+    );
+  }
 
   User? findByEmail(String email) {
     final id = _emailToId[email.toLowerCase()];
@@ -17,12 +36,11 @@ class UserStore {
 
   User? findById(String id) => _users[id];
 
-  /// Devuelve el User creado, o null si el email ya existe
-  User? register({
+  Future<User?> register({
     required String fullName,
     required String email,
     required String password,
-  }) {
+  }) async {
     final normalizedEmail = email.toLowerCase().trim();
     if (_emailToId.containsKey(normalizedEmail)) return null;
 
@@ -35,10 +53,10 @@ class UserStore {
     );
     _users[user.id] = user;
     _emailToId[normalizedEmail] = user.id;
+    await _persist();
     return user;
   }
 
-  /// Devuelve el User si las credenciales son correctas, o null
   User? login({required String email, required String password}) {
     final user = findByEmail(email);
     if (user == null) return null;

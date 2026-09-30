@@ -46,4 +46,25 @@ class Transaction {
         'userId': userId,
         'userName': userName,
       };
+
+  factory Transaction.fromJson(Map<String, dynamic> j) => Transaction(
+        id: j['id'] as String,
+        sessionId: j['sessionId'] as String,
+        stationId: j['stationId'] as String,
+        amount: (j['amount'] as num).toDouble(),
+        currency: j['currency'] as String,
+        createdAt: DateTime.parse(j['createdAt'] as String),
+        expiresAt: DateTime.parse(j['expiresAt'] as String),
+        status: TransactionStatus.values.firstWhere(
+          (s) => s.name == j['status'],
+          orElse: () => TransactionStatus.completed,
+        ),
+        authCode: j['authCode'] as String?,
+        currentToken: j['currentToken'] as String? ?? '',
+        tokenExpiresAt:
+            DateTime.tryParse(j['tokenExpiresAt'] as String? ?? '') ??
+                DateTime.now(),
+        userId: j['userId'] as String?,
+        userName: j['userName'] as String?,
+      );
 }

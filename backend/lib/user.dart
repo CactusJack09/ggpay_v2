@@ -23,10 +23,18 @@ class User {
         'createdAt': createdAt.toIso8601String(),
       };
 
-  Map<String, dynamic> toJsonWithHash() => {
+  Map<String, dynamic> toJsonFull() => {
         ...toJson(),
         'passwordHash': passwordHash,
       };
+
+  factory User.fromJson(Map<String, dynamic> j) => User(
+        id: j['id'] as String,
+        fullName: j['fullName'] as String,
+        email: j['email'] as String,
+        passwordHash: j['passwordHash'] as String,
+        createdAt: DateTime.parse(j['createdAt'] as String),
+      );
 }
 
 String simpleHash(String input) {
@@ -43,7 +51,6 @@ String simpleHash(String input) {
 bool verifyPassword(String input, String storedHash) {
   try {
     final decoded = base64Url.decode(storedHash);
-    final salt = decoded.sublist(0, 8);
     final passBytes = decoded.sublist(8);
     return String.fromCharCodes(passBytes) == input;
   } catch (_) {

@@ -1,5 +1,6 @@
 import 'package:uuid/uuid.dart';
 import 'transaction.dart';
+import 'persistence.dart';
 
 class TransactionStore {
   static final TransactionStore _instance = TransactionStore._internal();
@@ -12,11 +13,28 @@ class TransactionStore {
   static const Duration sessionValidity = Duration(minutes: 5);
   static const Duration tokenValidity = Duration(seconds: 10);
 
-  Transaction create({
+  Future<void> init() async {
+    final list = await Persistence.loadTransactions();
+    for (final j in list) {
+      try {
+        final tx = Transaction.fromJson(j);
+        _transactions[tx.sessionId] = tx;
+      } catch (_) {}
+    }
+    print('📂 Cargadas ${_transactions.length} transacciones');
+  }
+
+  Future<void> _persist() async {
+    await Persistence.saveTransactions(
+      _transactions.values.map((t) => t.toJson()).toList(),
+    );
+  }
+
+  Future<Transaction> create({
     required String stationId,
     required double amount,
     String currency = 'GTQ',
-  }) {
+  }) async {
     final now = DateTime.now();
     final tx = Transaction(
       id: _uuid.v4(),
@@ -30,6 +48,7 @@ class TransactionStore {
       tokenExpiresAt: now.add(tokenValidity),
     );
     _transactions[tx.sessionId] = tx;
+    await _persist();
     return tx;
   }
 
@@ -45,6 +64,7 @@ class TransactionStore {
     final now = DateTime.now();
     if (now.isAfter(tx.expiresAt)) {
       tx.status = TransactionStatus.expired;
+      _persist();
       return tx;
     }
 
@@ -55,7 +75,7 @@ class TransactionStore {
     return tx;
   }
 
-  String? authorize(String sessionId, String token) {
+  Future<String?> authorize(String sessionId, String token) async {
     final tx = _transactions[sessionId];
     if (tx == null) return 'Transacción no encontrada';
     if (tx.status == TransactionStatus.completed) return 'Transacción ya usada';
@@ -65,6 +85,7 @@ class TransactionStore {
     final now = DateTime.now();
     if (now.isAfter(tx.expiresAt)) {
       tx.status = TransactionStatus.expired;
+      await _persist();
       return 'QR expirado';
     }
     if (now.isAfter(tx.tokenExpiresAt)) return 'Token vencido';
@@ -72,11 +93,12 @@ class TransactionStore {
 
     tx.authCode = _uuid.v4().substring(0, 8).toUpperCase();
     tx.status = TransactionStatus.authorized;
+    await _persist();
     return null;
   }
 
-  String? authorizeWithUser(String sessionId, String token,
-      String userId, String userName) {
+  Future<String?> authorizeWithUser(String sessionId, String token,
+      String userId, String userName) async {
     final tx = _transactions[sessionId];
     if (tx == null) return 'Transacción no encontrada';
     if (tx.status == TransactionStatus.completed) return 'Transacción ya usada';
@@ -86,6 +108,7 @@ class TransactionStore {
     final now = DateTime.now();
     if (now.isAfter(tx.expiresAt)) {
       tx.status = TransactionStatus.expired;
+      await _persist();
       return 'QR expirado';
     }
     if (now.isAfter(tx.tokenExpiresAt)) return 'Token vencido';
@@ -95,25 +118,68 @@ class TransactionStore {
     tx.userName = userName;
     tx.authCode = _uuid.v4().substring(0, 8).toUpperCase();
     tx.status = TransactionStatus.authorized;
+    await _persist();
     return null;
   }
 
-  void complete(String sessionId) {
+  Future<void> complete(String sessionId) async {
     final tx = _transactions[sessionId];
-    if (tx != null) tx.status = TransactionStatus.completed;
+    if (tx != null) {
+      tx.status = TransactionStatus.completed;
+      await _persist();
+    }
   }
 
-  List<Transaction> getAll({String? userId}) {
-    final list = _transactions.values.toList();
-    if (userId != null) {
-      list.removeWhere((tx) => tx.userId != userId);
+  List<Transaction> getAll({
+    String? userId,
+    String? userName,
+    String? stationId,
+    DateTime? from,
+    DateTime? to,
+  }) {
+    var list = _transactions.values.toList();
+
+    if (userId != null && userId.isNotEmpty) {
+      list = list.where((t) => t.userId == userId).toList();
     }
+    if (userName != null && userName.isNotEmpty) {
+      final q = userName.toLowerCase();
+      list = list
+          .where((t) => (t.userName ?? '').toLowerCase().contains(q))
+          .toList();
+    }
+    if (stationId != null && stationId.isNotEmpty) {
+      final q = stationId.toLowerCase();
+      list = list
+          .where((t) => t.stationId.toLowerCase().contains(q))
+          .toList();
+    }
+    if (from != null) {
+      list = list.where((t) => !t.createdAt.isBefore(from)).toList();
+    }
+    if (to != null) {
+      final toEnd = DateTime(to.year, to.month, to.day, 23, 59, 59);
+      list = list.where((t) => !t.createdAt.isAfter(toEnd)).toList();
+    }
+
     list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return list;
   }
 
-  List<Transaction> getHistory({String? userId}) {
-    return getAll(userId: userId)
+  List<Transaction> getHistory({
+    String? userId,
+    String? userName,
+    String? stationId,
+    DateTime? from,
+    DateTime? to,
+  }) {
+    return getAll(
+      userId: userId,
+      userName: userName,
+      stationId: stationId,
+      from: from,
+      to: to,
+    )
         .where((tx) =>
             tx.status == TransactionStatus.authorized ||
             tx.status == TransactionStatus.completed)

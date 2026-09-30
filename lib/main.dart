@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'services/transaction_service.dart';
 import 'screens/station_screen.dart';
 import 'screens/scanner_screen.dart';
+import 'screens/history_screen.dart';
 
 void main() {
   runApp(
@@ -86,6 +87,26 @@ class HomeScreen extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const ScannerScreen()),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.history),
+                  label: const Text('HISTORIAL DE TRANSACCIONES'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const HistoryScreen()),
                     );
                   },
                 ),

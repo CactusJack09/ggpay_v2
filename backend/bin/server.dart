@@ -32,15 +32,43 @@ Response _json(Object data, {int status = 200}) => Response(
       headers: {'Content-Type': 'application/json'},
     );
 
+String _csvEscape(String? v) {
+  if (v == null) return '';
+  if (v.contains(',') || v.contains('"') || v.contains('\n')) {
+    return '"${v.replaceAll('"', '""')}"';
+  }
+  return v;
+}
+
+List<Map<String, dynamic>> _applyFilters(Request req) {
+  final q = req.url.queryParameters;
+  DateTime? from;
+  DateTime? to;
+  if (q['from'] != null && q['from']!.isNotEmpty) {
+    from = DateTime.tryParse(q['from']!);
+  }
+  if (q['to'] != null && q['to']!.isNotEmpty) {
+    to = DateTime.tryParse(q['to']!);
+  }
+  final txs = _store.getHistory(
+    userId: q['userId'],
+    userName: q['userName'],
+    stationId: q['stationId'],
+    from: from,
+    to: to,
+  );
+  return txs.map((t) => t.toJson()).toList();
+}
+
 Future<void> main() async {
+  await _store.init();
+  await _users.init();
+
   final router = Router()
 
     ..get('/health', (Request r) => _json({'status': 'ok'}))
 
-    // ============================
-    // USUARIOS
-    // ============================
-
+    // ============ USUARIOS ============
     ..post('/user/register', (Request req) async {
       final body = jsonDecode(await req.readAsString());
       final name = body['fullName'] as String?;
@@ -49,7 +77,7 @@ Future<void> main() async {
       if (name == null || email == null || password == null) {
         return _json({'error': 'Faltan datos'}, status: 400);
       }
-      final user = _users.register(
+      final user = await _users.register(
         fullName: name,
         email: email,
         password: password,
@@ -84,13 +112,16 @@ Future<void> main() async {
       });
     })
 
-    // ============================
-    // TRANSACCIONES
-    // ============================
+    ..get('/users', (Request req) {
+      return _json({
+        'users': _users.getAll().map((u) => u.toJson()).toList(),
+      });
+    })
 
+    // ============ TRANSACCIONES ============
     ..post('/transaction', (Request req) async {
       final body = jsonDecode(await req.readAsString());
-      final tx = _store.create(
+      final tx = await _store.create(
         stationId: body['stationId'] ?? 'PUMP-01',
         amount: (body['amount'] as num).toDouble(),
         currency: body['currency'] ?? 'GTQ',
@@ -130,7 +161,6 @@ Future<void> main() async {
       });
     })
 
-    // Autorizar (ahora acepta userId opcional)
     ..post('/authorize', (Request req) async {
       final body = jsonDecode(await req.readAsString());
       final sessionId = body['sessionId'] as String?;
@@ -143,9 +173,9 @@ Future<void> main() async {
       }
 
       final error = userId != null
-          ? _store.authorizeWithUser(
+          ? await _store.authorizeWithUser(
               sessionId, token, userId, userName ?? 'Anónimo')
-          : _store.authorize(sessionId, token);
+          : await _store.authorize(sessionId, token);
 
       if (error != null) return _json({'error': error}, status: 400);
       final tx = _store.get(sessionId)!;
@@ -160,17 +190,42 @@ Future<void> main() async {
     })
 
     ..post('/transaction/<sessionId>/complete',
-        (Request req, String sessionId) {
-      _store.complete(sessionId);
+        (Request req, String sessionId) async {
+      await _store.complete(sessionId);
       return _json({'ok': true});
     })
 
-    // Historial global (para la terminal web)
     ..get('/transactions', (Request req) {
-      final history = _store.getHistory();
-      return _json({
-        'transactions': history.map((t) => t.toJson()).toList(),
-      });
+      final txs = _applyFilters(req);
+      return _json({'transactions': txs});
+    })
+
+    ..get('/transactions/export.csv', (Request req) {
+      final txs = _applyFilters(req);
+      final buf = StringBuffer();
+      buf.writeln(
+          'Fecha,Usuario ID,Nombre Usuario,Monto,Moneda,Estacion,Codigo Autorizacion,Estado');
+      for (final t in txs) {
+        final date =
+            (t['createdAt'] as String).substring(0, 19).replaceAll('T', ' ');
+        buf.writeln([
+          date,
+          _csvEscape(t['userId'] as String?),
+          _csvEscape(t['userName'] as String?),
+          t['amount'],
+          t['currency'],
+          _csvEscape(t['stationId'] as String?),
+          _csvEscape(t['authCode'] as String?),
+          t['status'],
+        ].join(','));
+      }
+      return Response.ok(
+        buf.toString(),
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="transacciones.csv"',
+        },
+      );
     });
 
   final handler = const Pipeline()

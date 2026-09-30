@@ -52,4 +52,57 @@ class ApiService {
         .post(Uri.parse('$baseUrl/transaction/$sessionId/complete'))
         .timeout(const Duration(seconds: 10));
   }
+
+  Future<List<Map<String, dynamic>>> getHistory({
+    String? userId,
+    String? userName,
+    String? stationId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final params = <String, String>{};
+    if (userId != null && userId.isNotEmpty) params['userId'] = userId;
+    if (userName != null && userName.isNotEmpty) params['userName'] = userName;
+    if (stationId != null && stationId.isNotEmpty) {
+      params['stationId'] = stationId;
+    }
+    if (from != null) {
+      params['from'] = from.toIso8601String().substring(0, 10);
+    }
+    if (to != null) {
+      params['to'] = to.toIso8601String().substring(0, 10);
+    }
+    final uri = Uri.parse('$baseUrl/transactions')
+        .replace(queryParameters: params.isEmpty ? null : params);
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Error cargando historial: ${res.body}');
+    }
+    final data = jsonDecode(res.body);
+    return (data['transactions'] as List).cast<Map<String, dynamic>>();
+  }
+
+  String buildExportUrl({
+    String? userId,
+    String? userName,
+    String? stationId,
+    DateTime? from,
+    DateTime? to,
+  }) {
+    final params = <String, String>{};
+    if (userId != null && userId.isNotEmpty) params['userId'] = userId;
+    if (userName != null && userName.isNotEmpty) params['userName'] = userName;
+    if (stationId != null && stationId.isNotEmpty) {
+      params['stationId'] = stationId;
+    }
+    if (from != null) {
+      params['from'] = from.toIso8601String().substring(0, 10);
+    }
+    if (to != null) {
+      params['to'] = to.toIso8601String().substring(0, 10);
+    }
+    final uri = Uri.parse('$baseUrl/transactions/export.csv')
+        .replace(queryParameters: params.isEmpty ? null : params);
+    return uri.toString();
+  }
 }
