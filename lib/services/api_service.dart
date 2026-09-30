@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl =
-      'https://didactic-bassoon-vpq9vrv9jqrx2574-3000.app.github.dev';
+  static const String baseUrl = String.fromEnvironment(
+    'BACKEND_URL',
+    defaultValue: 'https://ggpay-backend.onrender.com',
+  );
 
   Future<Map<String, dynamic>> createTransaction({
     required String stationId,
