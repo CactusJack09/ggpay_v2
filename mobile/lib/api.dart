@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-const String backendUrl =
-    'https://didactic-bassoon-vpq9vrv9jqrx2574-3000.app.github.dev';
+const String backendUrl = String.fromEnvironment(
+  'BACKEND_URL',
+  defaultValue: 'https://ggpay-backend.onrender.com',
+);
 
 class Api {
   static Future<Map<String, dynamic>> register({
