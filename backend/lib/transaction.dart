@@ -12,6 +12,8 @@ class Transaction {
   String? authCode;
   String currentToken;
   DateTime tokenExpiresAt;
+  String? userId;
+  String? userName;
 
   Transaction({
     required this.id,
@@ -25,6 +27,8 @@ class Transaction {
     required this.tokenExpiresAt,
     this.status = TransactionStatus.pending,
     this.authCode,
+    this.userId,
+    this.userName,
   });
 
   Map<String, dynamic> toJson() => {
@@ -39,5 +43,7 @@ class Transaction {
         'authCode': authCode,
         'currentToken': currentToken,
         'tokenExpiresAt': tokenExpiresAt.toIso8601String(),
+        'userId': userId,
+        'userName': userName,
       };
 }

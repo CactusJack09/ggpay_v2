@@ -75,8 +75,48 @@ class TransactionStore {
     return null;
   }
 
+  String? authorizeWithUser(String sessionId, String token,
+      String userId, String userName) {
+    final tx = _transactions[sessionId];
+    if (tx == null) return 'Transacción no encontrada';
+    if (tx.status == TransactionStatus.completed) return 'Transacción ya usada';
+    if (tx.status == TransactionStatus.authorized) return 'Ya autorizada';
+    if (tx.status == TransactionStatus.expired) return 'QR expirado';
+
+    final now = DateTime.now();
+    if (now.isAfter(tx.expiresAt)) {
+      tx.status = TransactionStatus.expired;
+      return 'QR expirado';
+    }
+    if (now.isAfter(tx.tokenExpiresAt)) return 'Token vencido';
+    if (tx.currentToken != token) return 'Token desactualizado';
+
+    tx.userId = userId;
+    tx.userName = userName;
+    tx.authCode = _uuid.v4().substring(0, 8).toUpperCase();
+    tx.status = TransactionStatus.authorized;
+    return null;
+  }
+
   void complete(String sessionId) {
     final tx = _transactions[sessionId];
     if (tx != null) tx.status = TransactionStatus.completed;
+  }
+
+  List<Transaction> getAll({String? userId}) {
+    final list = _transactions.values.toList();
+    if (userId != null) {
+      list.removeWhere((tx) => tx.userId != userId);
+    }
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
+  }
+
+  List<Transaction> getHistory({String? userId}) {
+    return getAll(userId: userId)
+        .where((tx) =>
+            tx.status == TransactionStatus.authorized ||
+            tx.status == TransactionStatus.completed)
+        .toList();
   }
 }
