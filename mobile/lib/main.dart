@@ -26,7 +26,7 @@ class MobileApp extends StatelessWidget {
 }
 
 // ============================================================
-// SPLASH: decide si mostrar Login o Scanner según sesión guardada
+// SPLASH: decide si mostrar Login o Home según sesión guardada
 // ============================================================
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -322,7 +322,9 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> {
-  final MobileScannerController _controller = MobileScannerController();
+  final MobileScannerController _controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
   bool _processing = false;
   DateTime _lastScan = DateTime.fromMillisecondsSinceEpoch(0);
   String _status = 'Apunta al QR de la estación';
@@ -398,6 +400,26 @@ class _ScannerScreenState extends State<ScannerScreen> {
         children: [
           MobileScanner(
             controller: _controller,
+            errorBuilder: (context, error) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error,
+                          color: Colors.red, size: 60),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Error de cámara:\n${error.errorCode}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
             onDetect: (capture) {
               final code = capture.barcodes.first.rawValue;
               if (code != null) _handleQr(code);
