@@ -398,9 +398,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
       ),
       body: Stack(
         children: [
-                    MobileScanner(
+          MobileScanner(
             controller: _controller,
             onDetect: (capture) {
+              if (capture.barcodes.isEmpty) return;
               final code = capture.barcodes.first.rawValue;
               if (code != null) _handleQr(code);
             },
