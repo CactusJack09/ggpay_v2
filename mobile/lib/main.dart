@@ -398,28 +398,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
       ),
       body: Stack(
         children: [
-          MobileScanner(
+                    MobileScanner(
             controller: _controller,
-            errorBuilder: (context, error) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error,
-                          color: Colors.red, size: 60),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Error de cámara:\n${error.errorCode}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
             onDetect: (capture) {
               final code = capture.barcodes.first.rawValue;
               if (code != null) _handleQr(code);
