@@ -219,16 +219,22 @@ Future<void> main() async {
           t['status'],
         ].join(','));
       }
-           final now = DateTime.now();
-      final fecha = '${now.day.toString().padLeft(2, '0')}-'
-          '${now.month.toString().padLeft(2, '0')}-'
-          '${now.year}';
+
+      // 👇 Genera nombre del archivo con fecha del día
+      final now = DateTime.now();
+      final dia = now.day.toString().padLeft(2, '0');
+      final mes = now.month.toString().padLeft(2, '0');
+      final anio = now.year;
+      final hora = now.hour.toString().padLeft(2, '0');
+      final min = now.minute.toString().padLeft(2, '0');
+      final nombreArchivo =
+          'transacciones_${dia}-${mes}-${anio}_${hora}${min}.csv';
+
       return Response.ok(
         buf.toString(),
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition':
-              'attachment; filename="transacciones_$fecha.csv"',
+          'Content-Disposition': 'attachment; filename="$nombreArchivo"',
         },
       );
     });
