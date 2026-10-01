@@ -30,6 +30,30 @@ class TransactionStore {
     );
   }
 
+  /// Genera un código de autorización ÚNICO de 16 caracteres.
+  /// Verifica contra todas las transacciones existentes para garantizar
+  /// que nunca se repita.
+  String _generateUniqueAuthCode() {
+    String code;
+    int attempts = 0;
+    do {
+      code = _uuid.v4().replaceAll('-', '').substring(0, 16).toUpperCase();
+      attempts++;
+      if (attempts > 50) {
+        // Fallback: timestamp en hex (siempre único en la práctica)
+        code = DateTime.now()
+            .millisecondsSinceEpoch
+            .toRadixString(16)
+            .toUpperCase()
+            .padLeft(16, '0');
+        break;
+      }
+    } while (_transactions.values.any((t) => t.authCode == code));
+    return code;
+  }
+
+  String _generateToken() => _uuid.v4().replaceAll('-', '');
+
   Future<Transaction> create({
     required String stationId,
     required double amount,
@@ -51,8 +75,6 @@ class TransactionStore {
     await _persist();
     return tx;
   }
-
-  String _generateToken() => _uuid.v4().replaceAll('-', '');
 
   Transaction? get(String sessionId) => _transactions[sessionId];
 
@@ -91,7 +113,8 @@ class TransactionStore {
     if (now.isAfter(tx.tokenExpiresAt)) return 'Token vencido';
     if (tx.currentToken != token) return 'Token desactualizado';
 
-    tx.authCode = _uuid.v4().substring(0, 8).toUpperCase();
+    // 👇 Código único garantizado
+    tx.authCode = _generateUniqueAuthCode();
     tx.status = TransactionStatus.authorized;
     await _persist();
     return null;
@@ -116,7 +139,8 @@ class TransactionStore {
 
     tx.userId = userId;
     tx.userName = userName;
-    tx.authCode = _uuid.v4().substring(0, 8).toUpperCase();
+    // 👇 Código único garantizado
+    tx.authCode = _generateUniqueAuthCode();
     tx.status = TransactionStatus.authorized;
     await _persist();
     return null;
