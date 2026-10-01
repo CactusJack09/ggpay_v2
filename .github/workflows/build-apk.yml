@@ -27,6 +27,10 @@ jobs:
       - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
+      
+      - name: Generate launcher icons
+        working-directory: mobile
+        run: dart run flutter_launcher_icons
 
       - name: Build APK
         working-directory: mobile
