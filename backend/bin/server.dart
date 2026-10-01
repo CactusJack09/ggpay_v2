@@ -219,11 +219,16 @@ Future<void> main() async {
           t['status'],
         ].join(','));
       }
+           final now = DateTime.now();
+      final fecha = '${now.day.toString().padLeft(2, '0')}-'
+          '${now.month.toString().padLeft(2, '0')}-'
+          '${now.year}';
       return Response.ok(
         buf.toString(),
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="transacciones.csv"',
+          'Content-Disposition':
+              'attachment; filename="transacciones_$fecha.csv"',
         },
       );
     });
